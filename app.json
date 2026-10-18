@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "TA Dashboard | طه سعد",
+    "name": "TADashboard",
     "slug": "ta-dashboard",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,7 +8,10 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tahasaad.tadashboard"
+      "bundleIdentifier": "com.tahasaad.tadashboard",
+      "infoPlist": {
+        "CFBundleDisplayName": "TA Dashboard"
+      }
     },
     "android": {
       "adaptiveIcon": {

@@ -22,12 +22,6 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - name: 💎 Setup Ruby & CocoaPods
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.2'
-          bundler-cache: false
-
       - name: 📦 Install Project Dependencies
         run: |
           npm install
@@ -36,30 +30,23 @@ jobs:
         run: |
           npx expo prebuild --platform ios --clean
 
-      - name: 📱 Install CocoaPods
-        run: |
-          cd ios
-          pod install --repo-update
-          cd ..
-
       - name: 🛠️ Build Xcode Release Project (iPhone OS)
         run: |
-          cd ios
-          WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
-          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | head -n 1 | xargs)
-          echo "Building Workspace: $WORKSPACE with Scheme: $SCHEME"
+          WORKSPACE="ios/TADashboard.xcworkspace"
+          if [ ! -d "$WORKSPACE" ]; then
+            WORKSPACE=$(ls -d ios/*.xcworkspace | head -n 1)
+          fi
+          echo "Using Workspace: $WORKSPACE"
 
           xcodebuild \
             -workspace "$WORKSPACE" \
-            -scheme "$SCHEME" \
+            -scheme "TADashboard" \
             -configuration Release \
             -sdk iphoneos \
-            -derivedDataPath ../build \
+            -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             clean build
-
-          cd ..
 
       - name: ✍️ Package & Ad-Hoc Sign IPA
         run: |
@@ -84,13 +71,13 @@ jobs:
           path: TA-Dashboard.ipa
           retention-days: 30
 
-      - name: 🚀 Create GitHub Release (On Tag or Manual)
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+      - name: 🚀 Publish GitHub Release
         uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
         with:
           files: TA-Dashboard.ipa
           tag_name: v1.0.0-${{ github.run_number }}
-          name: TA Dashboard iOS Release v1.0.0 (Build ${{ github.run_number }})
+          name: TA Dashboard iOS Release v1.0.0
           body: |
             ## 📱 TA Dashboard iOS IPA
             نسخة التطبيق الرسمية الموقعة والمجهزة للتثبيت المباشر على أجهزة الآيفون.
