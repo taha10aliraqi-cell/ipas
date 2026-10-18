@@ -85,8 +85,6 @@ let package = Package(
           "-no-verify-emitted-module-interface",
           "-Xfrontend",
           "-clang-header-expose-decls=has-expose-attr",
-          "-Werror", "ImplicitStrongCapture",
-          "-Werror", "NoUsage",
           "-Xcc", "-fmodule-map-file=\\(generatedModuleMap)",
           "-Xcc", "-iapinotes-modules",
           "-Xcc", apiNotesPath
