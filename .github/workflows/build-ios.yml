@@ -42,33 +42,7 @@ jobs:
 
       - name: 🩹 Patch Swift Tools Version for Xcode 16 Compatibility
         run: |
-          node -e "
-            const fs = require('fs');
-            const path = require('path');
-            function walk(dir) {
-              let results = [];
-              if (!fs.existsSync(dir)) return results;
-              const list = fs.readdirSync(dir, { withFileTypes: true });
-              for (const item of list) {
-                const fullPath = path.join(dir, item.name);
-                if (item.isDirectory()) {
-                  if (item.name !== '.git') results = results.concat(walk(fullPath));
-                } else if (item.name === 'Package.swift') {
-                  results.push(fullPath);
-                }
-              }
-              return results;
-            }
-            const pkgs = walk('node_modules');
-            pkgs.forEach(f => {
-              let content = fs.readFileSync(f, 'utf8');
-              if (content.includes('swift-tools-version: 6.2')) {
-                content = content.replace(/swift-tools-version:\s*6\.2/g, 'swift-tools-version: 6.0');
-                fs.writeFileSync(f, content);
-                console.log('Patched swift-tools-version to 6.0 in:', f);
-              }
-            });
-          "
+          node scripts/patch-swift.js
 
       - name: ⚙️ Expo Prebuild (Generate Native iOS Project)
         run: |
