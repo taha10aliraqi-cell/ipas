@@ -1,0 +1,104 @@
+name: Build & Sign iOS IPA (TA Dashboard)
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    name: Build & Sign iOS IPA
+    runs-on: macos-14
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 💎 Setup Ruby & CocoaPods
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: false
+
+      - name: 📦 Install Project Dependencies
+        run: |
+          npm install
+
+      - name: ⚙️ Expo Prebuild (Generate Native iOS Project)
+        run: |
+          npx expo prebuild --platform ios --clean
+
+      - name: 📱 Install CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update
+          cd ..
+
+      - name: 🛠️ Build Xcode Release Project (iPhone OS)
+        run: |
+          cd ios
+          WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
+          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | head -n 1 | xargs)
+          echo "Building Workspace: $WORKSPACE with Scheme: $SCHEME"
+
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath ../build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            clean build
+
+          cd ..
+
+      - name: ✍️ Package & Ad-Hoc Sign IPA
+        run: |
+          APP_PATH=$(find build/Build/Products/Release-iphoneos -name "*.app" -type d | head -n 1)
+          echo "Found compiled app at: $APP_PATH"
+
+          # Ad-Hoc self-sign the .app bundle
+          codesign --force --deep --sign - "$APP_PATH"
+
+          # Package into Payload for IPA standard format
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -r "TA-Dashboard.ipa" Payload/
+
+          echo "IPA Created Successfully: TA-Dashboard.ipa"
+          ls -lh TA-Dashboard.ipa
+
+      - name: 📤 Upload IPA to GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TA-Dashboard-iOS-IPA
+          path: TA-Dashboard.ipa
+          retention-days: 30
+
+      - name: 🚀 Create GitHub Release (On Tag or Manual)
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: TA-Dashboard.ipa
+          tag_name: v1.0.0-${{ github.run_number }}
+          name: TA Dashboard iOS Release v1.0.0 (Build ${{ github.run_number }})
+          body: |
+            ## 📱 TA Dashboard iOS IPA
+            نسخة التطبيق الرسمية الموقعة والمجهزة للتثبيت المباشر على أجهزة الآيفون.
+
+            ### طرق التثبيت المدعومة:
+            1. **TrollStore** (تثبيت مباشر دائم بدون الحاجة لتجديد كل 7 أيام).
+            2. **Scarlet / Esign / Gbox** (تثبيت مباشر من سفاري باستخدام شهادة المؤسسة).
+            3. **AltStore / SideStore** (تثبيت عبر الكمبيوتر أو الواي فاي بحساب Apple ID).
+            4. **Sideloadly** (تثبيت مباشر بنقرة واحدة من الكمبيوتر).
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
